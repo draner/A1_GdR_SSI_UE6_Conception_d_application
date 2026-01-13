@@ -46,7 +46,7 @@ uv sync
 Une fois l'environnement prêt, vous pouvez lancer le serveur de développement FastAPI :
 
 ```shell
-uvicorn si_barrage.main:app --reload
+uv run uvicorn si_barrage.main:app --reload
 ```
 
 Cette commande démarre le serveur avec l'option `--reload`, qui redémarrera automatiquement l'application à chaque modification de fichier.
