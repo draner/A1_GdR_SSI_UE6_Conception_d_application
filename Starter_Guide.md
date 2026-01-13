@@ -13,7 +13,7 @@ Avant de commencer, assurez-vous d'avoir git installé sur votre machine :
 Pour commencer, ouvrez un terminal et clonez le dépôt Git du projet sur votre machine locale :
 
 ```shell
-git clone [https://github.com/draner/A1_GdR_SSI_UE6_Conception_d_application](https://github.com/draner/A1_GdR_SSI_UE6_Conception_d_application)
+git clone https://github.com/draner/A1_GdR_SSI_UE6_Conception_d_application.git
 cd A1_GdR_SSI_UE6_Conception_d_application  # Assurez-vous d'être dans le bon dossier
 ```
 
