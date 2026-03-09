@@ -75,6 +75,16 @@ def create_database():
     );
     """)
 
+    # --- Create centrale_parametres table ---
+    cursor.execute("""
+    CREATE TABLE centrale_parametres (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre_turbines INTEGER NOT NULL CHECK (nombre_turbines >= 0),
+        puissance_nominale_mw REAL NOT NULL CHECK (puissance_nominale_mw >= 0),
+        prix_electricite_eur_mwh REAL NOT NULL CHECK (prix_electricite_eur_mwh >= 0)
+    );
+    """)
+
     conn.commit()
     conn.close()
     print("Database and tables created successfully.")
@@ -124,5 +134,6 @@ if __name__ == "__main__":
     populate_table("production", "production_data.csv")
     populate_table("meteo_previsions", "meteo_previsions_data.csv")
     populate_table("intervention", "intervention_data.csv")
+    populate_table("centrale_parametres", "centrale_parametres_data.csv")
     print("\nDatabase generation complete.")
     print(f"You can now find your database in the file named '{DB_FILE}'.")

@@ -69,3 +69,16 @@ Stores detailed maintenance intervention records.
 | `intervenant`       | TEXT    | Name of the person who performed the intervention               |
 | `probleme`          | TEXT    | Description of the problem encountered                          |
 | `solution`          | TEXT    | Description of the solution applied during the intervention     |
+
+---
+
+## Table: `centrale_parametres`
+
+Stores static technical and economic settings for the hydroelectric plant.
+
+| Column                       | Type    | Description                                                      |
+| ---------------------------- | ------- | ---------------------------------------------------------------- |
+| `id`                         | INTEGER | Primary Key (auto-incrementing)                                  |
+| `nombre_turbines`            | INTEGER | Number of turbines installed in the plant                        |
+| `puissance_nominale_mw`      | REAL    | Nominal installed power in megawatts (MW)                        |
+| `prix_electricite_eur_mwh`   | REAL    | Electricity selling price in euros per megawatt-hour (EUR/MWh)   |
