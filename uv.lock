@@ -2342,8 +2342,8 @@ name = "si-barrage"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "fastapi", version = "0.124.4", source = { registry = "https://pypi.org/simple" }, extra = ["standard"], marker = "python_full_version < '3.9'" },
-    { name = "fastapi", version = "0.128.0", source = { registry = "https://pypi.org/simple" }, extra = ["standard"], marker = "python_full_version >= '3.9'" },
+    { name = "fastapi", version = "0.124.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "fastapi", version = "0.128.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "sqlalchemy" },
     { name = "uvicorn", version = "0.33.0", source = { registry = "https://pypi.org/simple" }, extra = ["standard"], marker = "python_full_version < '3.9'" },
     { name = "uvicorn", version = "0.39.0", source = { registry = "https://pypi.org/simple" }, extra = ["standard"], marker = "python_full_version == '3.9.*'" },
@@ -2365,6 +2365,7 @@ requires-dist = [
     { name = "pandas" },
     { name = "plotly" },
     { name = "pytest", marker = "extra == 'test'" },
+    { name = "python-multipart" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extras = ["standard"] },
 ]
