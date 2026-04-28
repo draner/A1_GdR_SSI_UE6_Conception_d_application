@@ -315,6 +315,7 @@ def get_kpis(db: Session) -> Dict[str, int]:
             WHERE rn = 1
         """)
     ).fetchone()
+    
 
     return {
         "termines": result[1] or 0,
