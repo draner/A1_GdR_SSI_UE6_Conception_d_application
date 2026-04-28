@@ -1,127 +1,152 @@
 # Endpoints de l'API pour la production
 from datetime import date
-from typing import List
+from typing import List, Optional, Tuple
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
+from ...db import get_db
 from .models import MeteoHistoriqueModel, ProductionDataModel
 
 router = APIRouter()
 
 
-# --- DATA & CONSTANTS (from Calcul et simulation.py) ---
-production_data = pd.DataFrame(
-    {
-        "date": [
-            "2024-01-01",
-            "2024-01-02",
-            "2024-01-03",
-            "2024-01-04",
-            "2024-01-05",
-            "2024-01-06",
-            "2024-01-07",
-            "2024-01-08",
-            "2024-01-09",
-            "2024-01-10",
-        ],
-        "production_mwh": [2500, 3200, 3800, 3500, 3000, 2800, 4200, 4800, 4500, 4100],
-        "volume_eau_m3": [
-            5000000,
-            6400000,
-            7600000,
-            7000000,
-            6000000,
-            5600000,
-            8400000,
-            9600000,
-            9000000,
-            8200000,
-        ],
-    }
-)
+def _get_centrale_params(db: Session) -> Tuple[float, int, float]:
+    row = db.execute(
+        text(
+            """
+            SELECT prix_electricite_eur_mwh, nombre_turbines, puissance_nominale_mw
+            FROM centrale_parametres
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        )
+    ).fetchone()
 
-meteo_historique = pd.DataFrame(
-    {
-        "date": [
-            "2024-01-01",
-            "2024-01-02",
-            "2024-01-03",
-            "2024-01-04",
-            "2024-01-05",
-            "2024-01-06",
-            "2024-01-07",
-            "2024-01-08",
-            "2024-01-09",
-            "2024-01-10",
-        ],
-        "debit_riviere_m3s": [
-            120.5,
-            135.2,
-            150.0,
-            142.8,
-            130.1,
-            125.7,
-            160.3,
-            185.0,
-            170.4,
-            158.6,
-        ],
-        "pluviometrie_mm": [5.2, 15.0, 8.5, 2.1, 0.0, 0.5, 25.8, 12.3, 4.0, 1.0],
-    }
-)
+    if not row:
+        raise ValueError(
+            "Paramètres de centrale introuvables. Initialise la table centrale_parametres."
+        )
 
-meteo_prevision = pd.DataFrame(
-    {
-        "date_prevision": ["2024-01-11", "2024-01-12", "2024-01-13", "2024-01-14"],
-        "debit_riviere_m3s_prevu": [155.0, 150.0, 168.0, 180.0],
-    }
-)
+    if row[0] is None or row[1] is None or row[2] is None:
+        raise ValueError("Paramètres de centrale incomplets dans centrale_parametres.")
 
-production_data["date"] = pd.to_datetime(production_data["date"])
-meteo_historique["date"] = pd.to_datetime(meteo_historique["date"])
-df = production_data.merge(meteo_historique, on="date")
-
-PRIX_ELECTRICITE = 120
-NB_TURBINES = 4
-PUISSANCE_NOMINALE = 50
-df["efficacite"] = df["production_mwh"] / df["volume_eau_m3"]
-EFFICACITE_MOYENNE = df["efficacite"].mean()
-df["production_max"] = NB_TURBINES * PUISSANCE_NOMINALE * 24
-df["taux_charge"] = (df["production_mwh"] / df["production_max"]) * 100
-df["revenu"] = df["production_mwh"] * PRIX_ELECTRICITE
-
-meteo_prevision["date_prevision"] = pd.to_datetime(meteo_prevision["date_prevision"])
-meteo_prevision["volume_estime_m3"] = meteo_prevision["debit_riviere_m3s_prevu"] * 86400
-meteo_prevision["production_estimee_mwh"] = (
-    meteo_prevision["volume_estime_m3"] * EFFICACITE_MOYENNE
-)
-production_max = NB_TURBINES * PUISSANCE_NOMINALE * 24
-meteo_prevision["production_estimee_mwh"] = meteo_prevision[
-    "production_estimee_mwh"
-].clip(upper=production_max)
-meteo_prevision["revenu_estime"] = (
-    meteo_prevision["production_estimee_mwh"] * PRIX_ELECTRICITE
-)
+    prix = float(row[0])
+    nb_turbines = int(row[1])
+    puissance_nominale = float(row[2])
+    return prix, nb_turbines, puissance_nominale
 
 
-# --- API Models and Endpoints (from alertes.py, Calcul et simulation.py) ---
+def _load_dashboard_data(db: Session) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    prix_electricite, nb_turbines, puissance_nominale = _get_centrale_params(db)
+
+    production_rows = db.execute(
+        text(
+            """
+            SELECT date, production_mwh, volume_eau_m3
+            FROM production
+            ORDER BY date ASC
+            """
+        )
+    ).fetchall()
+
+    meteo_rows = db.execute(
+        text(
+            """
+            SELECT date, debit_riviere_m3s, pluviometrie_mm
+            FROM meteo
+            ORDER BY date ASC
+            """
+        )
+    ).fetchall()
+
+    prevision_rows = db.execute(
+        text(
+            """
+            SELECT date_prevision, debit_riviere_m3s_prevu
+            FROM meteo_previsions
+            ORDER BY date_prevision ASC
+            """
+        )
+    ).fetchall()
+
+    production_data = pd.DataFrame(
+        production_rows,
+        columns=["date", "production_mwh", "volume_eau_m3"],
+    )
+    meteo_historique = pd.DataFrame(
+        meteo_rows,
+        columns=["date", "debit_riviere_m3s", "pluviometrie_mm"],
+    )
+    meteo_prevision = pd.DataFrame(
+        prevision_rows,
+        columns=["date_prevision", "debit_riviere_m3s_prevu"],
+    )
+
+    if not production_data.empty:
+        production_data["date"] = pd.to_datetime(production_data["date"])
+    if not meteo_historique.empty:
+        meteo_historique["date"] = pd.to_datetime(meteo_historique["date"])
+
+    df = production_data.merge(meteo_historique, on="date", how="inner")
+    if not df.empty:
+        df["efficacite"] = df["production_mwh"] / df["volume_eau_m3"].replace(0, pd.NA)
+        efficacite_moyenne = float(df["efficacite"].mean(skipna=True) or 0)
+        df["production_max"] = nb_turbines * puissance_nominale * 24
+        df["taux_charge"] = (df["production_mwh"] / df["production_max"]) * 100
+        df["revenu"] = df["production_mwh"] * prix_electricite
+    else:
+        efficacite_moyenne = 0.0
+        df = pd.DataFrame(
+            columns=[
+                "date",
+                "production_mwh",
+                "volume_eau_m3",
+                "debit_riviere_m3s",
+                "pluviometrie_mm",
+                "efficacite",
+                "production_max",
+                "taux_charge",
+                "revenu",
+            ]
+        )
+
+    if not meteo_prevision.empty:
+        meteo_prevision["date_prevision"] = pd.to_datetime(
+            meteo_prevision["date_prevision"]
+        )
+    meteo_prevision["volume_estime_m3"] = (
+        meteo_prevision["debit_riviere_m3s_prevu"] * 86400
+    )
+    meteo_prevision["production_estimee_mwh"] = (
+        meteo_prevision["volume_estime_m3"] * efficacite_moyenne
+    )
+    production_max = nb_turbines * puissance_nominale * 24
+    meteo_prevision["production_estimee_mwh"] = meteo_prevision[
+        "production_estimee_mwh"
+    ].clip(upper=production_max)
+    meteo_prevision["revenu_estime"] = (
+        meteo_prevision["production_estimee_mwh"] * prix_electricite
+    )
+
+    return df, meteo_prevision
 
 
-db_production: List[ProductionDataModel] = []
-db_meteo: List[MeteoHistoriqueModel] = []
-config = {
-    "prix_electricite": 120.0,
-    "seuil_sous_prod": 3000.0,
-    "seuil_sur_prod": 4500.0,
-}
+# --- API Models and Endpoints ---
 
 
 @router.get("/", response_class=HTMLResponse)
-async def root():
+async def root(
+    db: Session = Depends(get_db),
+    seuil_sous_prod: Optional[float] = None,
+    seuil_sur_prod: Optional[float] = None,
+):
+    df, meteo_prevision = _load_dashboard_data(db)
     # Production chart
     fig_prod = go.Figure()
     fig_prod.add_trace(
@@ -182,8 +207,20 @@ async def root():
     sim_html = fig_sim.to_html(full_html=False, include_plotlyjs=False)
 
     # Alertes chart (points sous/sur production)
-    seuil_bas = config["seuil_sous_prod"]
-    seuil_haut = config["seuil_sur_prod"]
+    if df.empty:
+        seuil_bas = 0.0
+        seuil_haut = 0.0
+    else:
+        seuil_bas = (
+            seuil_sous_prod
+            if seuil_sous_prod is not None
+            else float(df["production_mwh"].quantile(0.25))
+        )
+        seuil_haut = (
+            seuil_sur_prod
+            if seuil_sur_prod is not None
+            else float(df["production_mwh"].quantile(0.75))
+        )
     alert_low = df[df["production_mwh"] < seuil_bas]
     alert_high = df[df["production_mwh"] > seuil_haut]
     fig_alert = go.Figure()
@@ -281,36 +318,116 @@ async def root():
 
 
 @router.post("/production/saisie", tags=["Entrées"])
-async def saisie_production_v2(data: ProductionDataModel):
-    db_production.append(data)
+async def saisie_production_v2(
+    data: ProductionDataModel,
+    db: Session = Depends(get_db),
+):
+    db.execute(
+        text(
+            """
+            INSERT INTO production (date, production_mwh, volume_eau_m3)
+            VALUES (:date, :production_mwh, :volume_eau_m3)
+            """
+        ),
+        {
+            "date": data.date.isoformat(),
+            "production_mwh": data.production_mwh,
+            "volume_eau_m3": data.volume_eau_m3,
+        },
+    )
+    db.commit()
     return {"status": "confirmation", "message": "Donnée enregistrée"}
 
 
 @router.post("/meteo/import", tags=["Entrées"])
-async def import_meteo(data: List[MeteoHistoriqueModel]):
-    db_meteo.extend(data)
+async def import_meteo(
+    data: List[MeteoHistoriqueModel],
+    db: Session = Depends(get_db),
+):
+    for item in data:
+        db.execute(
+            text(
+                """
+                INSERT INTO meteo (date, debit_riviere_m3s, pluviometrie_mm)
+                VALUES (:date, :debit_riviere_m3s, :pluviometrie_mm)
+                """
+            ),
+            {
+                "date": item.date.isoformat(),
+                "debit_riviere_m3s": item.debit_riviere_m3s,
+                "pluviometrie_mm": item.pluviometrie_mm,
+            },
+        )
+    db.commit()
     return {"status": "confirmation", "nb_records": len(data)}
 
 
 @router.post("/prix/production", tags=["Configuration"])
-async def set_prix(prix: float):
-    config["prix_electricite"] = prix
+async def set_prix(prix: float, db: Session = Depends(get_db)):
+    row = db.execute(
+        text(
+            """
+            SELECT id
+            FROM centrale_parametres
+            ORDER BY id DESC
+            LIMIT 1
+            """
+        )
+    ).fetchone()
+
+    if row:
+        db.execute(
+            text(
+                """
+                UPDATE centrale_parametres
+                SET prix_electricite_eur_mwh = :prix
+                WHERE id = :id
+                """
+            ),
+            {"prix": prix, "id": row[0]},
+        )
+    else:
+        return {
+            "status": "error",
+            "message": "Aucune configuration centrale_parametres en base.",
+        }
+
+    db.commit()
     return {"status": "confirmation"}
 
 
 @router.get("/kpi/rendement", tags=["Analyses"])
-async def get_rendement_v2(date_start: date, date_end: date):
-    period_data = [d for d in db_production if date_start <= d.date <= date_end]
+async def get_rendement_v2(
+    date_start: date,
+    date_end: date,
+    db: Session = Depends(get_db),
+):
+    period_data = db.execute(
+        text(
+            """
+            SELECT date, production_mwh, volume_eau_m3
+            FROM production
+            WHERE date BETWEEN :date_start AND :date_end
+            ORDER BY date ASC
+            """
+        ),
+        {"date_start": date_start.isoformat(), "date_end": date_end.isoformat()},
+    ).fetchall()
+
     if not period_data:
-        return {"message": "Utilisez les endpoints POST pour alimenter la base API."}
+        return {"message": "Aucune donnée de production sur cette période."}
+
     results = []
-    total_prod = 0
-    total_vol = 0
+    total_prod = 0.0
+    total_vol = 0.0
     for d in period_data:
-        rendement_j = d.production_mwh / d.volume_eau_m3 if d.volume_eau_m3 > 0 else 0
-        results.append({"date": d.date, "rendement_journalier": rendement_j})
-        total_prod += d.production_mwh
-        total_vol += d.volume_eau_m3
+        volume = float(d[2] or 0)
+        production = float(d[1] or 0)
+        rendement_j = production / volume if volume > 0 else 0
+        results.append({"date": d[0], "rendement_journalier": rendement_j})
+        total_prod += production
+        total_vol += volume
+
     return {
         "detail_journalier": results,
         "rendement_moyen": total_prod / total_vol if total_vol > 0 else 0,
@@ -318,10 +435,27 @@ async def get_rendement_v2(date_start: date, date_end: date):
 
 
 @router.get("/kpi/revenu", tags=["Analyses"])
-async def get_revenu(date_start: date, date_end: date):
-    period_data = [d for d in db_production if date_start <= d.date <= date_end]
+async def get_revenu(
+    date_start: date,
+    date_end: date,
+    db: Session = Depends(get_db),
+):
+    prix_electricite, _, _ = _get_centrale_params(db)
+
+    period_data = db.execute(
+        text(
+            """
+            SELECT date, production_mwh
+            FROM production
+            WHERE date BETWEEN :date_start AND :date_end
+            ORDER BY date ASC
+            """
+        ),
+        {"date_start": date_start.isoformat(), "date_end": date_end.isoformat()},
+    ).fetchall()
+
     revenus_jours = [
-        {"date": d.date, "revenu": d.production_mwh * config["prix_electricite"]}
+        {"date": d[0], "revenu": float(d[1] or 0) * prix_electricite}
         for d in period_data
     ]
     total_revenu = sum(item["revenu"] for item in revenus_jours)
@@ -330,24 +464,40 @@ async def get_revenu(date_start: date, date_end: date):
 
 @router.get("/kpi/alertes", tags=["Analyses"])
 async def check_alertes(
-    date_start: date, date_end: date, seuil_sous: float, seuil_sur: float
+    date_start: date,
+    date_end: date,
+    seuil_sous: float,
+    seuil_sur: float,
+    db: Session = Depends(get_db),
 ):
-    period_data = [d for d in db_production if date_start <= d.date <= date_end]
+    period_data = db.execute(
+        text(
+            """
+            SELECT date, production_mwh
+            FROM production
+            WHERE date BETWEEN :date_start AND :date_end
+            ORDER BY date ASC
+            """
+        ),
+        {"date_start": date_start.isoformat(), "date_end": date_end.isoformat()},
+    ).fetchall()
+
     alertes = []
     for d in period_data:
-        if d.production_mwh < seuil_sous:
+        production = float(d[1] or 0)
+        if production < seuil_sous:
             alertes.append(
                 {
-                    "date": d.date,
-                    "production": d.production_mwh,
+                    "date": d[0],
+                    "production": production,
                     "type": "ROUGE (Sous-production)",
                 }
             )
-        elif d.production_mwh > seuil_sur:
+        elif production > seuil_sur:
             alertes.append(
                 {
-                    "date": d.date,
-                    "production": d.production_mwh,
+                    "date": d[0],
+                    "production": production,
                     "type": "BLEU (Surproduction)",
                 }
             )
@@ -363,7 +513,8 @@ async def get_dashboard(date_start: date, date_end: date):
 
 
 @router.get("/merged-results", response_class=HTMLResponse, tags=["Dashboard"])
-async def merged_results():
+async def merged_results(db: Session = Depends(get_db)):
+    df, meteo_prevision = _load_dashboard_data(db)
     df_html = df.to_html(index=False, classes="table", border=1)
     meteo_prevision_html = meteo_prevision.to_html(
         index=False, classes="table", border=1

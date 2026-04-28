@@ -191,5 +191,7 @@ if __name__ == "__main__":
     populate_table("maintenance", "maintenance_data.csv")
     populate_table("production", "production_data.csv")
     populate_table("meteo_previsions", "meteo_previsions_data.csv")
+    populate_table("intervention", "intervention_data.csv")
+    populate_table("centrale_parametres", "centrale_parametres_data.csv")
     print("\nDatabase generation complete.")
     print(f"Database file: '{DB_FILE}'")
