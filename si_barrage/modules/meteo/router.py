@@ -9,7 +9,7 @@ from .router_dashboard import router as dashboard_router
 
 router = APIRouter()
 
-router.include_router(dashboard_router, prefix="", tags=["Dashboard HTMX"])
+router.include_router(dashboard_router, prefix="", tags=["Dashboard"])
 
 
 @router.get("/releves")
@@ -58,7 +58,7 @@ def get_releves_html(db: Session = Depends(get_db)):
 
 @router.get("/previsions/html", response_class=HTMLResponse)
 def get_previsions_html(db: Session = Depends(get_db)):
-    """Retourne le HTML des prévisions météo (pour le dashboard HTMX)."""
+    """Retourne le HTML des prévisions météo (pour le dashboard)."""
     previsions = services.get_latest_previsions(db, limit=10)
 
     rows = ""
