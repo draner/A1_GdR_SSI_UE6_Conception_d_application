@@ -1,13 +1,16 @@
 # Point d'entrée de l'application FastAPI principale
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from .db import get_db
+from .db import engine, get_db
 from .modules.dashboard import router as dashboard_router
 from .modules.maintenance import router as maintenance_router
 from .modules.meteo import router as meteo_router
 from .modules.production import router as production_router
+
+load_dotenv()
 
 app = FastAPI(
     title="SI Barrage",
@@ -32,11 +35,21 @@ def read_root():
 def check_db_connection(db: Session = Depends(get_db)):
     """
     Checks the database connection and lists all tables.
+    Works with both SQLite and PostgreSQL.
     """
     try:
-        # Execute a simple query to check the connection
-        result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table';"))
+        db_url = str(engine.url)
+        if db_url.startswith("sqlite"):
+            result = db.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table';")
+            )
+        else:
+            result = db.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
+                )
+            )
         tables = [row[0] for row in result]
-        return {"status": "ok", "tables": tables}
+        return {"status": "ok", "backend": db_url.split(":")[0], "tables": tables}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
