@@ -53,6 +53,8 @@ Chaque équipe développe son module de manière indépendante. Cependant, tous 
 
 ## 🚀 Démarrer le Projet
 
+Pour lancer l'application en mode PostgreSQL avec Docker Compose, consultez le tutoriel détaillé : [docs/tutoriel_lancement_postgresql_docker.md](docs/tutoriel_lancement_postgresql_docker.md).
+
 1. **Forker ce dépôt :** Chaque équipe doit créer un "fork" de ce dépôt. C'est votre propre version du projet sur laquelle vous travaillerez.
 2. **Cloner votre fork :** Clonez le dépôt forké sur votre machine locale pour commencer à travailler.
   
