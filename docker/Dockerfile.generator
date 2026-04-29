@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy project metadata so uv can resolve dependencies
+COPY pyproject.toml uv.lock* ./
+
+# Install only the runtime dependency needed by the generator
+RUN uv pip install --system psycopg2-binary
+
+COPY generate_data/live_data_generator.py .
+
+CMD ["python", "live_data_generator.py"]

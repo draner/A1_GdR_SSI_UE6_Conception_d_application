@@ -1,0 +1,41 @@
+services:
+  # ── Base de données PostgreSQL ────────────────────────────────────────────────
+  db:
+    image: postgres:16
+    container_name: barrage_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: barrage
+      POSTGRES_USER: barrage_user
+      POSTGRES_PASSWORD: barrage_pass
+    ports:
+      # Expose le port pour que l'API lancée en local puisse se connecter
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Le script SQL est exécuté automatiquement au premier démarrage
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barrage_user -d barrage"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Générateur de données temps réel ─────────────────────────────────────────
+  data_generator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.generator
+    container_name: barrage_data_generator
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://barrage_user:barrage_pass@db:5432/barrage
+      # Intervalle en secondes entre chaque nouvelle entrée simulée
+      GENERATION_INTERVAL: "15"
+      LOG_LEVEL: "DEBUG"
+
+volumes:
+  postgres_data:

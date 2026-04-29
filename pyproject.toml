@@ -6,6 +6,9 @@ dependencies = [
     "fastapi[standard]",
     "uvicorn[standard]",
     "SQLAlchemy",
+    "psycopg2-binary",
+    "types-psycopg2>=2.9.21.20241019",
+    "python-dotenv",
     "pandas",
     "plotly"
 ]
