@@ -263,24 +263,47 @@ async def root(
     )
     alert_html = fig_alert.to_html(full_html=False, include_plotlyjs=False)
     alertes = []
+    # Collecter alertes avec date pour pouvoir trier par date
     if not alert_low.empty:
         for i, row in alert_low.iterrows():
             alertes.append(
-                f"{row['date'].date()} - Sous production {row['production_mwh']} MWh"
+                {
+                    "date": row["date"],
+                    "text": f"{row['date'].date()} - Sous production {row['production_mwh']} MWh",
+                }
             )
     if not alert_high.empty:
         for i, row in alert_high.iterrows():
             alertes.append(
-                f"{row['date'].date()} - Surproduction {row['production_mwh']} MWh"
+                {
+                    "date": row["date"],
+                    "text": f"{row['date'].date()} - Surproduction {row['production_mwh']} MWh",
+                }
             )
+
     alerte_banner = ""
     if alertes:
-        alerte_items = "<br>".join(alertes)
+        # Trier par date décroissante (les plus récentes en premier)
+        alertes.sort(key=lambda a: a["date"], reverse=True)
+        visible = alertes[:3]
+        hidden = alertes[3:]
+        visible_items = "<br>".join([a["text"] for a in visible])
+        hidden_items = "<br>".join([a["text"] for a in hidden]) if hidden else ""
+
+        # Utiliser <details> pour rendre le reste collapsible
+        details_html = (
+            f"<details><summary>Voir {len(hidden)} alertes supplémentaires</summary>"
+            f"<p class='alert-banner-list'>{hidden_items}</p></details>"
+            if hidden
+            else ""
+        )
+
         alerte_banner = f"""
         <div class='alert-banner'>
             <strong>⚠️ ALERTES DE SEUIL</strong>
             <p>{len(alertes)} dépassement(s) détecté(s) (seuil sous={seuil_bas}, seuil sur={seuil_haut}).</p>
-            <p class='alert-banner-list'>{alerte_items}</p>
+            <p class='alert-banner-list'>{visible_items}</p>
+            {details_html}
         </div>
 		"""
     df_html = df.to_html(index=False, classes="table", border=1)
@@ -295,7 +318,6 @@ async def root(
                 <h1 class='dashboard-title'>Dashboard Production</h1>
                 <p class='dashboard-subtitle'>Vue consolidée des indicateurs de production, des revenus et des prévisions météo.</p>
             </div>
-            <a class='btn-outline' href='/merged-results'>Résultats fusionnés</a>
         </header>
         {alerte_banner}
         <section class='dashboard-grid'>

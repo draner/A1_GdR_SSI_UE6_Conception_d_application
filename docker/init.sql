@@ -21,12 +21,19 @@ CREATE TABLE IF NOT EXISTS meteo_previsions (
 
 -- Table tickets de maintenance
 CREATE TABLE IF NOT EXISTS maintenance (
-    id               SERIAL PRIMARY KEY,
-    id_equipement    TEXT NOT NULL,
-    nom_equipement   TEXT,
-    statut           TEXT,
-    description      TEXT,
-    date_creation    DATE
+    id                   SERIAL PRIMARY KEY,
+    id_equipement        TEXT NOT NULL,
+    nom_equipement       TEXT,
+    statut               TEXT,
+    description          TEXT,
+    date_creation        DATE,
+    ticket_id            INTEGER,
+    date_intervention    DATE,
+    intervenant          TEXT,
+    solution             TEXT,
+    duree_minutes        INTEGER,
+    cout                 REAL,
+    pieces_changees      TEXT
 );
 
 -- Table production électrique

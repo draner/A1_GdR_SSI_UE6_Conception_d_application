@@ -19,7 +19,7 @@ router = APIRouter()
 router.include_router(ui_router, prefix="", tags=["UI Maintenance"])
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/home", response_class=HTMLResponse)
 async def maintenance_home():
     """
     Page d'accueil du module maintenance avec liens vers les actions principales.
@@ -36,6 +36,13 @@ async def maintenance_home():
     </div>
 
     <div class="dashboard-cards">
+        <a href="/maintenance" class="dashboard-card">
+            <div class="dashboard-card-icon">📊</div>
+            <div class="dashboard-card-title">Vue globale</div>
+            <div class="dashboard-card-description">
+                Accéder au tableau de bord global des équipements (KPI et liste).
+            </div>
+        </a>
         <a href="/maintenance/nouveau-ticket" class="dashboard-card">
             <div class="dashboard-card-icon">➕</div>
             <div class="dashboard-card-title">Nouveau Ticket</div>
@@ -257,10 +264,10 @@ async def nouveau_ticket_page():
     return HTMLResponse(content=html)
 
 
-@router.get("/tickets")
-def list_tickets(db: Session = Depends(get_db)):
+@router.get("/api/tickets")
+def list_tickets_api(db: Session = Depends(get_db)):
     """
-    Liste brute des tickets encore actifs.
+    API JSON: liste brute des tickets encore actifs.
 
     On exclut les lignes marquées 'Supprimé'.
     """
@@ -284,6 +291,24 @@ def list_tickets(db: Session = Depends(get_db)):
         }
         for t in tickets
     ]
+
+
+@router.get("/tickets", response_class=HTMLResponse)
+async def tickets_page():
+    """Page HTML listant tous les tickets (charge le tableau via HTMX)."""
+    content = """
+    <section class="card">
+      <div class="panel-title">Liste complète des tickets</div>
+      <div id="equipment-table-full"
+           hx-get="/maintenance/api/equipment-table"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <div class="loading-box">Chargement…</div>
+      </div>
+    </section>
+    """
+
+    return get_page_template("Tous les tickets", content, current_page="/maintenance")
 
 
 @router.get(
@@ -484,115 +509,98 @@ async def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
 @router.get("/", response_class=HTMLResponse)
 async def maintenance_dashboard_page():
     """
-    Page principale du tableau de bord maintenance.
-
-    Cette page charge dynamiquement :
-    - les KPI
-    - les filtres
-    - le tableau des équipements
-
-    Le style est volontairement harmonisé avec la page Historique
-    pour donner une interface cohérente, premium et professionnelle.
+    Page principale du tableau de bord maintenance réutilisant le template commun.
     """
-    html = """
-    <!DOCTYPE html>
-    <html lang="fr">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Maintenance — Vue globale</title>
-      <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-            <link rel="stylesheet" href="/assets/css/dashboards.css" />
-    </head>
-        <body class="dashboard-page">
-            <main class="dashboard-shell dashboard-stack">
+    content = """
+        <main class="dashboard-shell dashboard-stack">
                 <header class="dashboard-hero">
-                    <div>
-                        <div class="section-title">🛠️ Maintenance</div>
-                        <h1 class="dashboard-title">Vue globale du parc</h1>
-                        <p class="dashboard-subtitle">Vue synthétique du dernier état connu de chaque équipement.</p>
-                    </div>
+                        <div>
+                                <div class="section-title">🛠️ Maintenance</div>
+                                <h1 class="dashboard-title">Vue globale du parc</h1>
+                                <p class="dashboard-subtitle">Vue synthétique du dernier état connu de chaque équipement.</p>
+                        </div>
                 </header>
 
                 <div id="flash-message" class="flash-message"></div>
 
                 <section class="card">
-                    <div class="panel-title">Répartition des équipements par statut</div>
-                    <div id="kpis"
-                            hx-get="/maintenance/api/kpis"
-                            hx-trigger="load, every 10s"
-                            hx-swap="innerHTML">
-                    </div>
+                        <div class="panel-title">Répartition des équipements par statut</div>
+                        <div id="kpis"
+                                        hx-get="/maintenance/api/kpis"
+                                        hx-trigger="load, every 10s"
+                                        hx-swap="innerHTML">
+                        </div>
                 </section>
 
                 <section class="card">
-                    <div class="panel-title">Tableau récapitulatif des maintenances</div>
-                    <div class="info-note">
-                        Le tableau affiche au maximum les 5 dernières entrées visibles, après application des filtres.
-                    </div>
+                        <div class="panel-title">Tableau récapitulatif des maintenances</div>
+                        <div class="info-note">
+                                Le tableau affiche au maximum les 5 dernières entrées visibles, après application des filtres.
+                        </div>
 
-                    <div id="filter"
-                             hx-get="/maintenance/api/id-prefix-filter"
-                             hx-trigger="load"
-                             hx-swap="innerHTML">
-                    </div>
+                        <div id="filter"
+                                         hx-get="/maintenance/api/id-prefix-filter"
+                                         hx-trigger="load"
+                                         hx-swap="innerHTML">
+                        </div>
 
-                    <div id="equipment-table"
-                             hx-get="/maintenance/api/equipment-table"
-                             hx-trigger="load, every 10s"
-                             hx-include="#prefix-select, #status-select"
-                             hx-swap="innerHTML">
-                        <div class="loading-box">Chargement…</div>
-                    </div>
+                        <div id="equipment-table"
+                                         hx-get="/maintenance/api/equipment-table"
+                                         hx-trigger="load, every 10s"
+                                         hx-include="#prefix-select, #status-select"
+                                         hx-swap="innerHTML">
+                                <div class="loading-box">Chargement…</div>
+                        </div>
                 </section>
 
                 <div class="actions">
-                    <a href="/maintenance/nouveau-ticket" class="btn-primary">
-                        ➕ Créer un nouveau ticket
-                    </a>
+                        <a href="/maintenance/nouveau-ticket" class="btn-primary">
+                                ➕ Créer un nouveau ticket
+                        </a>
 
-                    <a href="/maintenance/interventions" class="btn-secondary">
-                        🛠️ Voir l'historique des interventions
-                    </a>
+                        <a href="/maintenance/interventions" class="btn-secondary">
+                                🛠️ Voir l'historique des interventions
+                        </a>
                 </div>
 
-            </main>
+        </main>
 
-      <script>
-        document.body.addEventListener("htmx:afterRequest", function(event) {
-          const elt = event.detail.elt;
+        <script>
+            document.body.addEventListener("htmx:afterRequest", function(event) {
+                const elt = event.detail.elt;
 
-          if (elt && elt.matches(".btn-delete") && event.detail.successful) {
-            const equipmentName = elt.getAttribute("data-equipment-name") || "cet équipement";
+                if (elt && elt.matches(".btn-delete") && event.detail.successful) {
+                    const equipmentName = elt.getAttribute("data-equipment-name") || "cet équipement";
 
-            const flash = document.getElementById("flash-message");
-            flash.textContent = "Suppression effectuée avec succès pour " + equipmentName + ".";
-            flash.style.display = "block";
+                    const flash = document.getElementById("flash-message");
+                    flash.textContent = "Suppression effectuée avec succès pour " + equipmentName + ".";
+                    flash.style.display = "block";
 
-            htmx.ajax("GET", "/maintenance/api/equipment-table", {
-              target: "#equipment-table",
-              swap: "innerHTML",
-              values: {
-                prefix: document.getElementById("prefix-select")?.value || "",
-                status: document.getElementById("status-select")?.value || ""
-              }
+                    htmx.ajax("GET", "/maintenance/api/equipment-table", {
+                        target: "#equipment-table",
+                        swap: "innerHTML",
+                        values: {
+                            prefix: document.getElementById("prefix-select")?.value || "",
+                            status: document.getElementById("status-select")?.value || ""
+                        }
+                    });
+
+                    htmx.ajax("GET", "/maintenance/api/kpis", {
+                        target: "#kpis",
+                        swap: "innerHTML"
+                    });
+
+                    setTimeout(() => {
+                        flash.style.display = "none";
+                    }, 3000);
+                }
             });
+        </script>
+        """
 
-            htmx.ajax("GET", "/maintenance/api/kpis", {
-              target: "#kpis",
-              swap: "innerHTML"
-            });
-
-            setTimeout(() => {
-              flash.style.display = "none";
-            }, 3000);
-          }
-        });
-      </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html)
+    return get_page_template(
+        "Maintenance — Vue globale", content, current_page="/maintenance"
+    )
 
 
 @router.get("/api/equipment-table", response_class=HTMLResponse)

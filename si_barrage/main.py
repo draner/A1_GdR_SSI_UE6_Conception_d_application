@@ -1,5 +1,10 @@
 # Point d'entrée de l'application FastAPI principale
 from dotenv import load_dotenv
+
+# Charger les variables d'environnement avant d'importer les modules
+# afin que `si_barrage.db` lise la valeur correcte de `DATABASE_URL`.
+load_dotenv("si_barrage/.env")
+
 from fastapi import Depends, FastAPI
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -13,8 +18,6 @@ from .modules.dashboard import router as dashboard_router
 from .modules.home import router as home_router
 from .modules.meteo import router as meteo_router
 from .modules.production import router as production_router
-
-load_dotenv()
 
 app = FastAPI(
     title="SI Barrage",

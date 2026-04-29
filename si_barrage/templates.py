@@ -12,7 +12,8 @@ def get_navbar(current_page: str = "") -> str:
     """
     menu_items = [
         ("Accueil", "/"),
-        ("Maintenance", "/maintenance"),
+        ("Maintenance", "/maintenance/home"),
+        ("Tickets", "/maintenance/tickets"),
         ("Interventions", "/maintenance/interventions"),
         ("Production", "/production"),
         ("Météo", "/meteo"),
@@ -23,7 +24,10 @@ def get_navbar(current_page: str = "") -> str:
     nav_html += '<ul class="navbar-menu">'
 
     for label, link in menu_items:
-        is_active = current_page == link
+        if link == "/":
+            is_active = current_page == "/"
+        else:
+            is_active = bool(current_page and current_page.startswith(link))
         active_class = "active" if is_active else ""
         nav_html += (
             f'<li><a href="{link}" class="navbar-link {active_class}">{label}</a></li>'
@@ -166,6 +170,7 @@ def get_page_template(title: str, content: str, current_page: str = "") -> str:
             }}
         }}
     </style>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </head>
 <body class="dashboard-page">
     {navbar}
