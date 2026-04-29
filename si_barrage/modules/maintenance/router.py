@@ -86,43 +86,7 @@ async def nouveau_ticket_page():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Nouveau ticket — Maintenance</title>
-        <style>
-            body {
-                font-family: system-ui;
-                max-width: 600px;
-                margin: 40px auto;
-                padding: 20px;
-            }
-            .form-group { margin-bottom: 20px; }
-            label { display: block; margin-bottom: 5px; font-weight: 500; }
-            input, select, textarea {
-                width: 100%;
-                padding: 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                font-size: 16px;
-                box-sizing: border-box;
-            }
-            .btn {
-                background: #28a745;
-                color: white;
-                padding: 14px 28px;
-                border: none;
-                border-radius: 6px;
-                font-size: 16px;
-                cursor: pointer;
-                width: 100%;
-            }
-            .btn:hover { background: #218838; }
-            .back-link {
-                display: inline-block;
-                margin-bottom: 30px;
-                color: #007bff;
-                text-decoration: none;
-            }
-            .back-link:hover { text-decoration: underline; }
-            h1 { color: #333; margin-bottom: 10px; }
-        </style>
+        <link rel="stylesheet" href="/assets/css/dashboards.css" />
     </head>
     <body>
         <a href="/maintenance/" class="back-link">← Retour au tableau de bord</a>
@@ -407,7 +371,8 @@ async def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
             status_code=500,
             content="Erreur lors de la suppression.",
         )
-    
+
+
 @router.get("/", response_class=HTMLResponse)
 async def maintenance_dashboard_page():
     """
@@ -429,95 +394,7 @@ async def maintenance_dashboard_page():
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Maintenance — Vue globale</title>
       <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-
-      <style>
-        body {
-            font-family: system-ui;
-            padding: 20px;
-            max-width: 1100px;
-            margin: 0 auto;
-            background: #f6f7fb;
-            color: #1f2937;
-        }
-
-        .section-title {
-            font-size: 2.2rem;
-            font-weight: bold;
-            margin-bottom: 6px;
-        }
-
-        .subtitle {
-            color: #667085;
-            margin-bottom: 24px;
-            font-size: 1rem;
-        }
-
-        .card {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-            padding: 22px;
-            margin-bottom: 24px;
-        }
-
-        .panel-title {
-            font-size: 1.25rem;
-            font-weight: 800;
-            margin: 0 0 14px 0;
-        }
-
-        .muted {
-            color: #667085;
-        }
-
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-        }
-
-        .kpi-card {
-            background: white;
-            border-radius: 16px;
-            padding: 26px 20px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
-        }
-
-        .kpi-number {
-            font-size: 3rem;
-            font-weight: bold;
-            line-height: 1;
-            margin-bottom: 10px;
-        }
-
-        .kpi-label {
-            color: #667085;
-            font-size: 1rem;
-        }
-
-        .kpi-termine {
-            border: 2px solid #16a34a;
-        }
-
-        .kpi-encours {
-            border: 2px solid #f59e0b;
-        }
-
-        .kpi-attente {
-            border: 2px solid #f87171;
-        }
-
-        .filter-bar {
-            display: flex;
-            gap: 18px;
-            align-items: end;
-            flex-wrap: wrap;
-        }
-
-        .field {
+      <link rel="stylesheet" href="/assets/css/dashboards.css" />
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -788,7 +665,7 @@ async def equipment_table(
         <button
           class="btn-delete"
           data-equipment-name="{equipment_name}"
-          hx-delete="/maintenance/tickets/{r['id']}"
+          hx-delete="/maintenance/tickets/{r["id"]}"
           hx-confirm="Voulez-vous vraiment supprimer l’équipement {equipment_name} ?"
         >
           Supprimer

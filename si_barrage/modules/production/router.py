@@ -287,16 +287,12 @@ async def root(
     )
 
     return f"""
-	<html>
-	<head>
-		<title>Dashboard Production</title>
-		<style>
-			.table {{ border-collapse: collapse; width: 100%; margin-bottom: 18px; }}
-			.table th, .table td {{ border: 1px solid #ccc; padding: 4px 6px; text-align: center; }}
-			.table th {{ background:#f1f1f1; }}
-		</style>
-	</head>
-	<body style='background:#f8f9fa;'>
+    <html>
+    <head>
+        <title>Dashboard Production</title>
+        <link rel="stylesheet" href="/assets/css/dashboards.css" />
+    </head>
+    <body style='background:#f8f9fa;'>
 		<div style='max-width:1100px;margin:30px auto;font-family:Arial,Helvetica,sans-serif;'>
 			<h1 style='text-align:center'>Dashboard Production</h1>
 			<p style='text-align:center; margin-bottom:24px;'>Voir tous les résultats merge : <a href='/merged-results'>/merged-results</a></p>
@@ -519,17 +515,14 @@ async def merged_results(db: Session = Depends(get_db)):
     meteo_prevision_html = meteo_prevision.to_html(
         index=False, classes="table", border=1
     )
+
     return f"""
-	<html>
-	<head>
-		<title>Résultats Merge</title>
-		<style>
-			.table {{ border-collapse: collapse; width: 100%; margin-bottom: 18px; }}
-			.table th, .table td {{ border: 1px solid #ccc; padding: 4px 6px; text-align: center; }}
-			.table th {{ background:#f1f1f1; }}
-		</style>
-	</head>
-	<body style='background:#f8f9fa;'>
+    <html>
+    <head>
+        <title>Résultats Merge</title>
+        <link rel="stylesheet" href="/assets/css/dashboards.css" />
+    </head>
+    <body style='background:#f8f9fa;'>
 		<div style='max-width:1100px;margin:30px auto;font-family:Arial,Helvetica,sans-serif;'>
 			<h1>Résultats des fichiers merge</h1>
 			<p>Voici toutes les lignes du DataFrame fusionné:</p>
