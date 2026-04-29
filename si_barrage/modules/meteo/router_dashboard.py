@@ -3,6 +3,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from si_barrage.templates import get_navbar
+
 from ...db import get_db
 from ..meteo import services as meteo_services
 from . import services
@@ -15,313 +17,77 @@ async def dashboard_page():
     """
     Page principale du dashboard météo avec HTMX.
     """
-    html_content = """
-<!DOCTYPE html>
+    navbar = get_navbar(current_page="/meteo")
+
+    html_content = f"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Météo - SI Barrage</title>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="/assets/css/dashboards.css" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        .header {
+        /* Styles du menu de navigation */
+        .navbar {{
+            background-color: var(--bg-top);
+            color: white;
+            padding: 16px 24px;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        h1 {
-            color: white;
-            font-size: 2.8rem;
-            text-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            display: flex;
             align-items: center;
-            gap: 15px;
-        }
-        
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px 20px;
-            border-radius: 50px;
-            color: white;
-            font-size: 0.9rem;
-        }
-        
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #4ade80;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .top-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .metric-card {
-            background: white;
-            border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            text-align: center;
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        
-        .metric-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
-        }
-        
-        .metric-title {
-            font-size: 0.9rem;
-            color: #888;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-        }
-        
-        .metric-value {
-            font-size: 2.4rem;
-            color: #0099ff;
-            font-weight: 800;
-            font-variant-numeric: tabular-nums;
-        }
-        
-        .metric-unit {
-            font-size: 0.8rem;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .bottom-row {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }}
 
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, #00d4ff, #0099ff);
-        }
-        
-        .card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
-        }
-        
-        .card-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 25px;
-        }
-        
-        .card-icon {
-            font-size: 1.8rem;
-        }
-        
-        .card-title {
-            font-size: 1.2rem;
-            color: #333;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        thead {
-            background: linear-gradient(135deg, #f0f4f8 0%, #f8fbff 100%);
-        }
-        
-        th {
-            text-align: left;
-            padding: 14px;
-            font-weight: 700;
-            color: #0f3460;
-            border-bottom: 2px solid #e0e7ff;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        td {
-            padding: 14px;
-            border-bottom: 1px solid #f0f0f0;
-            color: #555;
-            font-size: 0.95rem;
-        }
-        
-        tbody tr {
-            transition: all 0.2s ease;
-        }
-        
-        tbody tr:hover {
-            background: linear-gradient(90deg, #f0f4f8 0%, #f8fbff 100%);
-        }
-        
-        .estimation-box {
-            background: linear-gradient(135deg, #f0f4f8 0%, #f8fbff 100%);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-        }
-        
-        .conseil-box {
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid #f59e0b;
-            line-height: 1.6;
-            color: #333;
-            font-size: 0.95rem;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-            color: #999;
-        }
-        
-        .spinner {
-            border: 3px solid #f0f0f0;
-            border-top: 3px solid #0099ff;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 10px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #eee;
-            flex-wrap: wrap;
-        }
-        
-        .legend-item {
+        .navbar-brand {{
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-decoration: none;
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 0.9rem;
-            color: #666;
-        }
-        
-        .legend-color {
-            width: 16px;
-            height: 3px;
-            border-radius: 2px;
-        }
-        
-        .color-real { background: #0099ff; }
-        .color-prev { background: #f59e0b; }
-        
-        svg {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-        
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 15px;
-            }
-            
-            .top-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .bottom-row {
-                grid-template-columns: 1fr;
-            }
-            
-            h1 {
-                font-size: 2rem;
-            }
-        }
+        }}
+
+        .navbar-menu {{
+            list-style: none;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }}
+
+        .navbar-link {{
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }}
+
+        .navbar-link:hover {{
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }}
+
+        .navbar-link.active {{
+            color: var(--accent);
+            font-weight: 600;
+            background-color: rgba(245, 158, 11, 0.1);
+        }}
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🌦️ Dashboard Météo</h1>
-        </div>
+<body class="dashboard-page">
+    {navbar}
+    <main class="dashboard-shell">
+        <header class="dashboard-hero">
+            <div>
+                <div class="section-title">🌦️ Météo</div>
+                <h1 class="dashboard-title">Dashboard météo</h1>
+                <p class="dashboard-subtitle">Débits, pluies et prévisions consolidés dans une vue unique et lisible.</p>
+            </div>
+        </header>
         
         <!-- Première ligne : 3 colonnes -->
         <div class="top-row">
@@ -439,7 +205,7 @@ async def dashboard_page():
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 </body>
 </html>
     """

@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from si_barrage.db import get_db
+from si_barrage.templates import get_navbar
 
 from . import services
 from .models import MaintenanceTicket
@@ -49,6 +50,61 @@ def page_interventions(db: Session = Depends(get_db)):
         ]
     )
 
+    navbar = get_navbar(current_page="/maintenance/interventions")
+
+    navbar_styles = """
+    <style>
+        /* Styles du menu de navigation */
+        .navbar {
+            background-color: var(--bg-top);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-menu {
+            list-style: none;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .navbar-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .navbar-link.active {
+            color: var(--accent);
+            font-weight: 600;
+            background-color: rgba(245, 158, 11, 0.1);
+        }
+    </style>
+    """
+
     html = f"""
 <!doctype html>
 <html lang="fr">
@@ -56,87 +112,83 @@ def page_interventions(db: Session = Depends(get_db)):
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Maintenance • Historique des interventions</title>
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <link rel="stylesheet" href="/assets/css/dashboards.css" />
+  {navbar_styles}
 </head>
 
-<body class="bg-base-200 min-h-screen">
-  <div class="max-w-7xl mx-auto p-6">
-
-    <div class="flex flex-col gap-2 mb-6">
-      <div class="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 class="text-3xl font-bold">Maintenance</h1>
-          <p class="text-base-content/70">Historique & analyse des interventions par équipement</p>
-        </div>
+<body class="dashboard-page">
+  {navbar}
+  <main class="dashboard-shell dashboard-stack">
+    <header class="dashboard-hero">
+      <div>
+        <div class="section-title">🛠️ Maintenance</div>
+        <h1 class="dashboard-title">Historique des interventions</h1>
+        <p class="dashboard-subtitle">Historique et analyse des interventions par équipement.</p>
       </div>
-    </div>
+    </header>
 
-    <div class="card bg-base-100 shadow-xl mb-6">
-      <div class="card-body gap-5">
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text font-semibold">Équipement</span></div>
-            <select id="eq" class="select select-bordered w-full">
+    <section class="card">
+      <div class="card-body stacked-section">
+        <div class="field-grid cols-3">
+          <label class="field w-full">
+            <span class="field-label">Équipement</span>
+            <select id="eq">
               <option value="" selected>-- choisir --</option>
               {options}
             </select>
           </label>
 
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text font-semibold">Pagination</span></div>
+          <label class="field w-full">
+            <span class="field-label">Pagination</span>
             <div class="join w-full">
-              <button class="btn join-item btn-outline" onclick="prevPage()">◀</button>
+              <button class="btn btn-outline join-item" onclick="prevPage()">◀</button>
               <div class="join-item w-full">
-                <input id="limit" type="number" class="input input-bordered w-full" min="1" max="200" value="20" />
+                <input id="limit" type="number" min="1" max="200" value="20" />
               </div>
-              <button class="btn join-item btn-outline" onclick="nextPage()">▶</button>
+              <button class="btn btn-outline join-item" onclick="nextPage()">▶</button>
             </div>
-            <div class="label"><span class="label-text-alt text-base-content/60">limit (par page) • offset auto</span></div>
+            <span class="field-hint">limit par page, offset auto</span>
           </label>
 
-          <div class="flex items-end">
+          <div class="form-control-inline">
             <button class="btn btn-primary w-full" onclick="loadList(true)">
               Charger l'historique
             </button>
           </div>
         </div>
 
-        <div class="divider my-0"></div>
+        <div class="divider"></div>
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text font-semibold">Top N</span></div>
-            <input id="topn" type="number" class="input input-bordered w-full" min="1" max="50" value="5"/>
+        <div class="field-grid cols-4">
+          <label class="field w-full">
+            <span class="field-label">Top N</span>
+            <input id="topn" type="number" min="1" max="50" value="5"/>
           </label>
 
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text font-semibold">start_date</span></div>
-            <input id="start" type="text" class="input input-bordered w-full" placeholder="YYYY-MM-DD"/>
+          <label class="field w-full">
+            <span class="field-label">start_date</span>
+            <input id="start" type="text" placeholder="YYYY-MM-DD"/>
           </label>
 
-          <label class="form-control w-full">
-            <div class="label"><span class="label-text font-semibold">end_date</span></div>
-            <input id="end" type="text" class="input input-bordered w-full" placeholder="YYYY-MM-DD"/>
+          <label class="field w-full">
+            <span class="field-label">end_date</span>
+            <input id="end" type="text" placeholder="YYYY-MM-DD"/>
           </label>
 
-          <div class="flex items-end">
+          <div class="form-control-inline">
             <button class="btn btn-secondary w-full" onclick="loadAnalyse()">
               Analyser
             </button>
           </div>
         </div>
 
-        <div id="toast" class="hidden alert mt-2"></div>
+        <div id="toast" class="hidden alert"></div>
       </div>
-    </div>
+    </section>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <div class="card bg-base-100 shadow-xl lg:col-span-2">
-        <div class="card-body">
+    <div class="dashboard-grid" style="grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);">
+      <section class="card">
+        <div class="card-body stacked-section">
           <div class="flex items-center justify-between flex-wrap gap-2">
             <h2 class="card-title">Historique</h2>
             <div class="text-sm text-base-content/60">
@@ -145,7 +197,7 @@ def page_interventions(db: Session = Depends(get_db)):
           </div>
 
           <div id="list" class="mt-2">
-            <div class="text-base-content/60">Choisis un équipement puis clique “Charger l’historique”.</div>
+            <div class="loading-box">Choisis un équipement puis clique “Charger l'historique”.</div>
           </div>
 
           <div class="flex gap-2 justify-end mt-4">
@@ -153,32 +205,32 @@ def page_interventions(db: Session = Depends(get_db)):
             <button class="btn btn-outline btn-sm" onclick="nextPage()">Suivant</button>
           </div>
         </div>
-      </div>
+      </section>
 
       <div class="flex flex-col gap-6">
 
-        <div class="card bg-base-100 shadow-xl">
-          <div class="card-body">
+        <section class="card">
+          <div class="card-body stacked-section">
             <h2 class="card-title">Détail</h2>
             <div id="detail" class="text-base-content/60">
               Clique sur “Voir” dans le tableau.
             </div>
           </div>
-        </div>
+        </section>
 
-        <div class="card bg-base-100 shadow-xl">
-          <div class="card-body">
+        <section class="card">
+          <div class="card-body stacked-section">
             <h2 class="card-title">Analyse</h2>
             <div id="analyse" class="text-base-content/60">
               Lance une analyse (Top N + dates optionnelles).
             </div>
           </div>
-        </div>
+        </section>
 
       </div>
     </div>
 
-  </div>
+  </main>
 
 <script>
 let offset = 0;
@@ -218,16 +270,16 @@ async function loadList(resetOffset) {{
   if (resetOffset) offset = 0;
 
   document.getElementById('offsetLabel').textContent = offset;
-  document.getElementById('detail').innerHTML = `<span class="text-base-content/60">Clique sur “Voir” dans le tableau.</span>`;
-  document.getElementById('analyse').innerHTML = `<span class="text-base-content/60">Lance une analyse (Top N + dates optionnelles).</span>`;
+  document.getElementById('detail').innerHTML = `<div class="loading-box">Clique sur “Voir” dans le tableau.</div>`;
+  document.getElementById('analyse').innerHTML = `<div class="loading-box">Lance une analyse (Top N + dates optionnelles).</div>`;
 
   const limit = getLimit();
   const url = `/maintenance/equipements/${{encodeURIComponent(eq)}}/interventions/list?limit=${{limit}}&offset=${{offset}}`;
 
   document.getElementById('list').innerHTML = `
-    <div class="flex items-center gap-3">
-      <span class="loading loading-spinner loading-md"></span>
-      <span class="text-base-content/60">Chargement…</span>
+    <div class="loading-inline">
+      <span class="spinner"></span>
+      <span>Chargement…</span>
     </div>
   `;
 
@@ -272,9 +324,9 @@ async function loadAnalyse() {{
   if (end) qs.set("end_date", end);
 
   document.getElementById('analyse').innerHTML = `
-    <div class="flex items-center gap-3">
-      <span class="loading loading-spinner loading-md"></span>
-      <span class="text-base-content/60">Analyse…</span>
+    <div class="loading-inline">
+      <span class="spinner"></span>
+      <span>Analyse…</span>
     </div>
   `;
 
@@ -329,19 +381,19 @@ def page_interventions_list(
         intervenant_value = it.intervenant or ""
 
         trs.append(f"""
-<tr class="hover">
+<tr>
   <td class="font-mono">{it.id}</td>
   <td>{_html_escape(str(date_value))}</td>
   <td>{_html_escape(intervenant_value)}</td>
   <td>{_html_escape(problem)}</td>
   <td class="text-right">
-    <button class="btn btn-xs btn-outline" onclick="loadDetail({it.id})">Voir</button>
+    <button class="btn btn-outline btn-xs" onclick="loadDetail({it.id})">Voir</button>
   </td>
 </tr>
 """)
 
     return f"""
-<div class="overflow-x-auto">
+<div class="table-wrap dashboard-table-shell">
   <table class="table table-zebra">
     <thead>
       <tr>
@@ -476,7 +528,7 @@ def page_interventions_analyse(
   <div class="badge badge-outline">Top N: {top_n}</div>
 </div>
 
-<ul class="divide-y">
+<ul class="stacked-section">
   {items}
 </ul>
 """

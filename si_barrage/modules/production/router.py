@@ -10,6 +10,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from si_barrage.templates import get_page_template
+
 from ...db import get_db
 from .models import MeteoHistoriqueModel, ProductionDataModel
 
@@ -275,42 +277,46 @@ async def root(
     if alertes:
         alerte_items = "<br>".join(alertes)
         alerte_banner = f"""
-		<div style='background:#ffe9e9;border:1px solid #ff7f7f;padding:10px;margin-bottom:14px;border-radius:6px;'>
-			<strong style='color:#b30000;'>⚠️ ALERTES DE SEUIL</strong>
-			<p style='margin:4px 0;'>{len(alertes)} dépassement(s) détecté(s) (seuil sous={seuil_bas}, seuil sur={seuil_haut}).</p>
-			<p style='margin:0;line-height:1.4;'>{alerte_items}</p>
-		</div>
+        <div class='alert-banner'>
+            <strong>⚠️ ALERTES DE SEUIL</strong>
+            <p>{len(alertes)} dépassement(s) détecté(s) (seuil sous={seuil_bas}, seuil sur={seuil_haut}).</p>
+            <p class='alert-banner-list'>{alerte_items}</p>
+        </div>
 		"""
     df_html = df.to_html(index=False, classes="table", border=1)
     meteo_prevision_html = meteo_prevision.to_html(
         index=False, classes="table", border=1
     )
 
-    return f"""
-    <html>
-    <head>
-        <title>Dashboard Production</title>
-        <link rel="stylesheet" href="/assets/css/dashboards.css" />
-    </head>
-    <body style='background:#f8f9fa;'>
-		<div style='max-width:1100px;margin:30px auto;font-family:Arial,Helvetica,sans-serif;'>
-			<h1 style='text-align:center'>Dashboard Production</h1>
-			<p style='text-align:center; margin-bottom:24px;'>Voir tous les résultats merge : <a href='/merged-results'>/merged-results</a></p>
-			{alerte_banner}
-			<div>{prod_html}</div>
-			<div>{rend_html}</div>
-			<div>{rev_html}</div>
-			<div>{taux_html}</div>
-			<div>{sim_html}</div>
-			<div>{alert_html}</div>
-			<h2>Résultats du merge (production + météo historique)</h2>
-			<div style='overflow:auto; max-height:380px; border: 1px solid #ddd; background: white; padding: 10px;'>{df_html}</div>
-			<h2>Prévisions avec production estimée</h2>
-			<div style='overflow:auto; max-height:260px; border: 1px solid #ddd; background: white; padding: 10px;'>{meteo_prevision_html}</div>
-		</div>
-	</body>
-	</html>
-	"""
+    content = f"""
+        <header class='dashboard-hero'>
+            <div>
+                <div class='section-title'>⚡ Production</div>
+                <h1 class='dashboard-title'>Dashboard Production</h1>
+                <p class='dashboard-subtitle'>Vue consolidée des indicateurs de production, des revenus et des prévisions météo.</p>
+            </div>
+            <a class='btn-outline' href='/merged-results'>Résultats fusionnés</a>
+        </header>
+        {alerte_banner}
+        <section class='dashboard-grid'>
+            <div class='card'><div class='card-body'>{prod_html}</div></div>
+            <div class='card'><div class='card-body'>{rend_html}</div></div>
+            <div class='card'><div class='card-body'>{rev_html}</div></div>
+            <div class='card'><div class='card-body'>{taux_html}</div></div>
+            <div class='card'><div class='card-body'>{sim_html}</div></div>
+            <div class='card'><div class='card-body'>{alert_html}</div></div>
+            <div class='card'>
+                <div class='panel-title'>Résultats du merge (production + météo historique)</div>
+                <div class='dashboard-table-shell'>{df_html}</div>
+            </div>
+            <div class='card'>
+                <div class='panel-title'>Prévisions avec production estimée</div>
+                <div class='dashboard-table-shell'>{meteo_prevision_html}</div>
+            </div>
+        </section>
+    """
+
+    return get_page_template("Production", content, current_page="/production")
 
 
 @router.post("/production/saisie", tags=["Entrées"])
@@ -522,16 +528,27 @@ async def merged_results(db: Session = Depends(get_db)):
         <title>Résultats Merge</title>
         <link rel="stylesheet" href="/assets/css/dashboards.css" />
     </head>
-    <body style='background:#f8f9fa;'>
-		<div style='max-width:1100px;margin:30px auto;font-family:Arial,Helvetica,sans-serif;'>
-			<h1>Résultats des fichiers merge</h1>
-			<p>Voici toutes les lignes du DataFrame fusionné:</p>
-			<h2>Merge production + météo historique</h2>
-			<div style='overflow:auto; max-height:380px; border:1px solid #ddd; background:white; padding:8px;'>{df_html}</div>
-			<h2>Prévision de production estimée</h2>
-			<div style='overflow:auto; max-height:260px; border:1px solid #ddd; background:white; padding:8px;'>{meteo_prevision_html}</div>
-			<p><a href='/'>Retour au dashboard</a></p>
-		</div>
-	</body>
+    <body class='dashboard-page'>
+        <main class='dashboard-shell dashboard-stack'>
+            <header class='dashboard-hero'>
+                <div>
+                    <div class='section-title'>🔗 Merge</div>
+                    <h1 class='dashboard-title'>Résultats des fichiers merge</h1>
+                    <p class='dashboard-subtitle'>Tableaux fusionnés pour l'analyse de production et des prévisions météo.</p>
+                </div>
+                <a class='btn-outline' href='/'>Retour au dashboard</a>
+            </header>
+            <section class='dashboard-grid'>
+                <div class='card'>
+                    <div class='panel-title'>Merge production + météo historique</div>
+                    <div class='dashboard-table-shell'>{df_html}</div>
+                </div>
+                <div class='card'>
+                    <div class='panel-title'>Prévision de production estimée</div>
+                    <div class='dashboard-table-shell'>{meteo_prevision_html}</div>
+                </div>
+            </section>
+        </main>
+    </body>
 	</html>
 	"""

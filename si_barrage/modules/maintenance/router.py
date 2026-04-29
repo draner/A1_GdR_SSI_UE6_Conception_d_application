@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
 from si_barrage.db import get_db
+from si_barrage.templates import get_navbar, get_page_template
 
 from . import services
 from .models import MaintenanceTicket
@@ -16,6 +17,52 @@ router = APIRouter()
 
 # Sous-routeurs
 router.include_router(ui_router, prefix="", tags=["UI Maintenance"])
+
+
+@router.get("/", response_class=HTMLResponse)
+async def maintenance_home():
+    """
+    Page d'accueil du module maintenance avec liens vers les actions principales.
+    """
+    content = """
+    <div class="dashboard-hero">
+        <div>
+            <h1 class="section-title">🔧 Maintenance</h1>
+            <p style="color: var(--muted); margin-top: 12px; max-width: 600px;">
+                Gestion de la maintenance du barrage. Créez des tickets, consultez l'historique 
+                des interventions et suivez les équipements.
+            </p>
+        </div>
+    </div>
+
+    <div class="dashboard-cards">
+        <a href="/maintenance/nouveau-ticket" class="dashboard-card">
+            <div class="dashboard-card-icon">➕</div>
+            <div class="dashboard-card-title">Nouveau Ticket</div>
+            <div class="dashboard-card-description">
+                Créer un nouveau ticket de maintenance pour signaler un problème.
+            </div>
+        </a>
+
+        <a href="/maintenance/interventions" class="dashboard-card">
+            <div class="dashboard-card-icon">📋</div>
+            <div class="dashboard-card-title">Historique Interventions</div>
+            <div class="dashboard-card-description">
+                Consulter l'historique et les détails des interventions par équipement.
+            </div>
+        </a>
+
+        <a href="/maintenance/tickets" class="dashboard-card">
+            <div class="dashboard-card-icon">📝</div>
+            <div class="dashboard-card-title">Tous les Tickets</div>
+            <div class="dashboard-card-description">
+                Liste de tous les tickets de maintenance créés.
+            </div>
+        </a>
+    </div>
+    """
+
+    return get_page_template("Maintenance", content, current_page="/maintenance")
 
 
 @router.post("/tickets")
@@ -79,7 +126,62 @@ async def nouveau_ticket_page():
     """
     Formulaire HTML de création d'un nouveau ticket.
     """
-    html = """
+    navbar = get_navbar(current_page="/maintenance")
+
+    navbar_styles = """
+    <style>
+        /* Styles du menu de navigation */
+        .navbar {
+            background-color: var(--bg-top);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .navbar-menu {
+            list-style: none;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .navbar-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .navbar-link.active {
+            color: var(--accent);
+            font-weight: 600;
+            background-color: rgba(245, 158, 11, 0.1);
+        }
+    </style>
+    """
+
+    html = f"""
     <!DOCTYPE html>
     <html lang="fr">
     <head>
@@ -87,13 +189,17 @@ async def nouveau_ticket_page():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Nouveau ticket — Maintenance</title>
         <link rel="stylesheet" href="/assets/css/dashboards.css" />
+        {navbar_styles}
     </head>
-    <body>
+    <body class="form-page">
+      {navbar}
+      <main class="dashboard-shell form-shell">
         <a href="/maintenance/" class="back-link">← Retour au tableau de bord</a>
 
-        <h1>➕ Nouveau ticket de maintenance</h1>
+        <div class="form-card">
+          <h1>➕ Nouveau ticket de maintenance</h1>
 
-        <form action="/maintenance/tickets" method="POST">
+          <form action="/maintenance/tickets" method="POST">
             <div class="form-group">
                 <label for="nom">Technicien :</label>
                 <input type="text" id="nom" name="nom" required>
@@ -142,7 +248,9 @@ async def nouveau_ticket_page():
             </div>
 
             <button type="submit" class="btn">Créer le ticket</button>
-        </form>
+                    </form>
+                </div>
+            </main>
     </body>
     </html>
     """
@@ -394,206 +502,61 @@ async def maintenance_dashboard_page():
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Maintenance — Vue globale</title>
       <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-      <link rel="stylesheet" href="/assets/css/dashboards.css" />
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .field label {
-            font-weight: 700;
-            font-size: 0.98rem;
-        }
-
-        select {
-            padding: 12px 14px;
-            border: 1px solid #d0d5dd;
-            border-radius: 10px;
-            font-size: 16px;
-            background: white;
-            min-width: 180px;
-        }
-
-        select:focus {
-            outline: none;
-            border-color: #7c3aed;
-            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
-        }
-
-        .info-note {
-            color: #667085;
-            margin: 4px 0 18px 0;
-            font-size: 14px;
-        }
-
-        .loading-box,
-        .info-box {
-            border-radius: 12px;
-            padding: 14px 16px;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            color: #475467;
-        }
-
-        .table-wrap {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #edf2f7;
-            text-align: left;
-            vertical-align: top;
-        }
-
-        th {
-            color: #475467;
-            font-size: 14px;
-            font-weight: 800;
-        }
-
-        tbody tr:hover {
-            filter: brightness(0.99);
-        }
-
-        .status-termine td {
-            background-color: #dff3e3;
-        }
-
-        .status-encours td {
-            background-color: #fbe0b5;
-        }
-
-        .status-attente td {
-            background-color: #f8d7da;
-        }
-
-        .btn-delete,
-        .btn-primary,
-        .btn-secondary {
-            border: none;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            transition: 0.2s ease;
-        }
-
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-            padding: 10px 16px;
-        }
-
-        .btn-delete:hover {
-            background: #bb2d3b;
-            transform: translateY(-1px);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            opacity: 0.96;
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #7c3aed, #6d28d9);
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            opacity: 0.96;
-            transform: translateY(-1px);
-        }
-
-        .actions {
-            margin: 20px 0;
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .flash-message {
-            display: none;
-            margin-bottom: 18px;
-            padding: 12px 16px;
-            border-radius: 10px;
-            background: #dcfce7;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-            font-weight: 600;
-        }
-
-        .mono {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        }
-
-        @media (max-width: 900px) {
-            .kpi-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-      </style>
+            <link rel="stylesheet" href="/assets/css/dashboards.css" />
     </head>
-    <body>
-      <div class="section-title">🛠️ Maintenance : Vue globale du parc</div>
-      <div class="subtitle">Vue synthétique du dernier état connu de chaque équipement</div>
+        <body class="dashboard-page">
+            <main class="dashboard-shell dashboard-stack">
+                <header class="dashboard-hero">
+                    <div>
+                        <div class="section-title">🛠️ Maintenance</div>
+                        <h1 class="dashboard-title">Vue globale du parc</h1>
+                        <p class="dashboard-subtitle">Vue synthétique du dernier état connu de chaque équipement.</p>
+                    </div>
+                </header>
 
-      <div id="flash-message" class="flash-message"></div>
+                <div id="flash-message" class="flash-message"></div>
 
-      <div class="card">
-        <div class="panel-title">Répartition des équipements par statut</div>
-        <div id="kpis"
-            hx-get="/maintenance/api/kpis"
-            hx-trigger="load, every 10s"
-            hx-swap="innerHTML">
-        </div>
-      </div>
+                <section class="card">
+                    <div class="panel-title">Répartition des équipements par statut</div>
+                    <div id="kpis"
+                            hx-get="/maintenance/api/kpis"
+                            hx-trigger="load, every 10s"
+                            hx-swap="innerHTML">
+                    </div>
+                </section>
 
-      <div class="card">
-        <div class="panel-title">Tableau récapitulatif des maintenances</div>
-        <div class="info-note">
-          Le tableau affiche au maximum les 5 dernières entrées visibles, après application des filtres.
-        </div>
+                <section class="card">
+                    <div class="panel-title">Tableau récapitulatif des maintenances</div>
+                    <div class="info-note">
+                        Le tableau affiche au maximum les 5 dernières entrées visibles, après application des filtres.
+                    </div>
 
-        <div id="filter"
-             hx-get="/maintenance/api/id-prefix-filter"
-             hx-trigger="load"
-             hx-swap="innerHTML">
-        </div>
+                    <div id="filter"
+                             hx-get="/maintenance/api/id-prefix-filter"
+                             hx-trigger="load"
+                             hx-swap="innerHTML">
+                    </div>
 
-        <div id="equipment-table"
-             hx-get="/maintenance/api/equipment-table"
-             hx-trigger="load, every 10s"
-             hx-include="#prefix-select, #status-select"
-             hx-swap="innerHTML">
-          <div class="loading-box">Chargement…</div>
-        </div>
-      </div>
+                    <div id="equipment-table"
+                             hx-get="/maintenance/api/equipment-table"
+                             hx-trigger="load, every 10s"
+                             hx-include="#prefix-select, #status-select"
+                             hx-swap="innerHTML">
+                        <div class="loading-box">Chargement…</div>
+                    </div>
+                </section>
 
-      <div class="actions">
-        <a href="/maintenance/nouveau-ticket" class="btn-primary">
-          ➕ Créer un nouveau ticket
-        </a>
+                <div class="actions">
+                    <a href="/maintenance/nouveau-ticket" class="btn-primary">
+                        ➕ Créer un nouveau ticket
+                    </a>
 
-        <a href="/maintenance/interventions" class="btn-secondary">
-          🛠️ Voir l'historique des interventions
-        </a>
-      </div>
+                    <a href="/maintenance/interventions" class="btn-secondary">
+                        🛠️ Voir l'historique des interventions
+                    </a>
+                </div>
+
+            </main>
 
       <script>
         document.body.addEventListener("htmx:afterRequest", function(event) {
